@@ -10,8 +10,6 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::session;
-
 pub struct SessionManager {
     sessions: Arc<Mutex<HashMap<String, Session>>>,
     duration: Duration,

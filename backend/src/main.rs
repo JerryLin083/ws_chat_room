@@ -2,6 +2,7 @@ use dotenv::dotenv;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod db;
+mod handler;
 mod router;
 mod server;
 mod session;
