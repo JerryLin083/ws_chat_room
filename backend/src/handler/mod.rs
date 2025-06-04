@@ -1,7 +1,11 @@
 mod api;
 //get
-pub(crate) use api::greeting;
+pub use api::greeting;
+
+//post
+pub use api::login;
+pub use api::signup;
 
 mod static_file;
 //get
-pub(crate) use static_file::home;
+pub use static_file::home;
