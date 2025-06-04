@@ -5,11 +5,12 @@ use crate::{db::db_connection, router::router, session::SessionManager};
 
 pub async fn run() {
     let pool = db_connection().await;
-    let session_manager = SessionManager::build(Duration::from_secs(5 * 60));
+    let session_manager = SessionManager::build(Duration::from_secs(30 * 60));
     let router = router(pool, session_manager.clone()).await;
 
-    //handle session expiration
-    let _ = session_manager.run_checker();
+    //run background checker
+    let session_manager_for_bg = session_manager.clone();
+    session_manager_for_bg.run_checker();
 
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))

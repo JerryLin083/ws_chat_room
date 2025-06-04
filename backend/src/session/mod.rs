@@ -10,6 +10,8 @@ use tokio::{
 };
 use uuid::Uuid;
 
+use crate::session;
+
 pub struct SessionManager {
     sessions: Arc<Mutex<HashMap<String, Session>>>,
     duration: Duration,
@@ -18,13 +20,27 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn build(duration: Duration) -> Arc<SessionManager> {
-        let (tx, _rx) = broadcast::channel(2);
+        let (tx, _rx) = broadcast::channel(1);
 
         Arc::new(SessionManager {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             duration,
             shutdown: tx,
         })
+    }
+
+    pub async fn check_session(self: &Arc<Self>, session_id: &str) -> Option<i32> {
+        let mut sessions = self.sessions.lock().await;
+
+        match sessions.get_mut(session_id) {
+            Some(session) => {
+                //update expiration
+                session.expiration = Instant::now() + self.duration;
+
+                Some(session.user_id)
+            }
+            None => None,
+        }
     }
 
     pub async fn new_session(self: &Arc<Self>, user_id: i32) -> String {
@@ -59,27 +75,36 @@ impl SessionManager {
         sessions.remove(session_id);
     }
 
-    pub async fn run_checker(self: &Arc<Self>) {
+    pub fn run_checker(self: &Arc<Self>) {
         let session_manager = self.clone();
+        let session_manager_for_shutdown = self.clone();
         let mut shutdown_receiver = self.shutdown.subscribe();
 
-        tokio::select! {
-          _ = shutdown_receiver.recv() => {
-            tracing::info!("Server shutdown...")
-          }
-          _ = tokio::spawn(async move {
-              let check_timing = session_manager.duration;
+        tokio::spawn(async move {
+            tokio::select! {
+              _ = shutdown_receiver.recv() => {
+                //clear sessions
+                let mut sessions = session_manager_for_shutdown.sessions.lock().await;
+                sessions.clear();
 
-              loop {
-                  sleep(check_timing).await;
-
-                  let mut sessions = session_manager.sessions.lock().await;
-
-                  //session was expired when expiration smaller then now
-                  sessions.retain(|_k, session| session.expiration > Instant::now());
+                tracing::info!("Server shutdown...")
               }
-          }) => {}
-        }
+              _ = tokio::spawn(async move {
+                  let check_timing = session_manager.duration;
+
+                  tracing::info!("Run expiration checker...");
+
+                  loop {
+                      sleep(check_timing).await;
+
+                      let mut sessions = session_manager.sessions.lock().await;
+
+                      //session was expired when expiration smaller then now
+                      sessions.retain(|_k, session| session.expiration > Instant::now());
+                  }
+              }) => {}
+            }
+        });
     }
 }
 
