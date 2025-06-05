@@ -3,6 +3,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod db;
 mod handler;
+mod room_manager;
 mod router;
 mod server;
 mod session;

@@ -1,17 +1,21 @@
 use axum_server::tls_rustls::RustlsConfig;
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
-use crate::{db::db_connection, router::router, session::SessionManager};
+use crate::{
+    db::db_connection, room_manager::RoomManager, router::router, session::SessionManager,
+};
 
 pub async fn run() {
     let pool = db_connection().await;
     let session_manager = SessionManager::build(Duration::from_secs(30 * 60));
-    let router = router(pool, session_manager.clone()).await;
+    let room_manager = RoomManager::build(Duration::from_secs(30 * 60));
+    let router = router(pool, session_manager.clone(), room_manager.clone()).await;
 
-    //run background checker
+    //run session background checker
     let session_manager_for_bg = session_manager.clone();
     session_manager_for_bg.run_checker();
 
+    //tls config
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("self_signed_cert")

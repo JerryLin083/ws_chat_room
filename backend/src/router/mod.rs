@@ -7,12 +7,20 @@ use api::api_router;
 mod static_file;
 use static_file::static_router;
 
-use crate::session::SessionManager;
+use crate::{
+    room_manager::{self, RoomManager},
+    session::SessionManager,
+};
 
-pub async fn router(pool: Pool<Postgres>, session_manager: Arc<SessionManager>) -> Router {
+pub async fn router(
+    pool: Pool<Postgres>,
+    session_manager: Arc<SessionManager>,
+    room_manager: Arc<RoomManager>,
+) -> Router {
     let app_state = AppState {
         pool,
         session_manager,
+        room_manager,
     };
 
     let api_router = api_router();
@@ -31,4 +39,5 @@ pub async fn router(pool: Pool<Postgres>, session_manager: Arc<SessionManager>) 
 pub struct AppState {
     pub pool: Pool<Postgres>,
     pub session_manager: Arc<SessionManager>,
+    pub room_manager: Arc<RoomManager>,
 }
