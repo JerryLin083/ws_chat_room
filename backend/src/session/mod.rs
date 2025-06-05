@@ -48,24 +48,24 @@ impl SessionManager {
             session_id.to_string(),
             Session {
                 user_id,
-                expiration: Instant::now(),
+                expiration: Instant::now() + self.duration,
             },
         );
 
         session_id.to_string()
     }
 
-    pub async fn update_session(self: &Arc<Self>, session_id: String, user_id: i32) {
-        let mut sessions = self.sessions.lock().await;
+    // pub async fn update_session(self: &Arc<Self>, session_id: String, user_id: i32) {
+    //     let mut sessions = self.sessions.lock().await;
 
-        sessions.insert(
-            session_id,
-            Session {
-                user_id,
-                expiration: Instant::now(),
-            },
-        );
-    }
+    //     sessions.insert(
+    //         session_id,
+    //         Session {
+    //             user_id,
+    //             expiration: Instant::now() + self.duration,
+    //         },
+    //     );
+    // }
 
     pub async fn delete_session(self: &Arc<Self>, session_id: &str) {
         let mut sessions = self.sessions.lock().await;

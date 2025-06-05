@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use axum::{
     Json,
     extract::State,
@@ -7,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde::Deserialize;
-use sqlx::{error::DatabaseError, Error, Row};
+use sqlx::{Error, Row};
 
 use crate::{handler::api::ApiResponse, router::AppState};
 
@@ -50,7 +49,7 @@ pub async fn signup(
 
     let user_id: i32 = row.get(0);
 
-    //TODO: create sesion and set session_id on cookie
+    //create sesion and set session_id on cookie
     let mut headers = HeaderMap::new();
 
     let session_manage = app_state.session_manager.clone();
@@ -107,7 +106,7 @@ pub async fn login(
 
     let user_id: i32 = row.get(0);
 
-    //TODO: create sesion and set session_id on cookie
+    //create sesion and set session_id on cookie
     let mut headers = HeaderMap::new();
 
     let session_manage = app_state.session_manager.clone();

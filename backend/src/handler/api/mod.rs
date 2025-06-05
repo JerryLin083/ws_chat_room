@@ -1,7 +1,8 @@
 use serde::Serialize;
 
 mod get;
-pub use get::greeting;
+pub use get::auth;
+pub use get::logout;
 
 mod post;
 pub use post::login;
@@ -46,6 +47,15 @@ where
             status: "error".into(),
             code: code.into(),
             message: msg.into(),
+            data: None,
+        }
+    }
+
+    pub fn unauthorized() -> ApiResponse<T> {
+        ApiResponse {
+            status: "error".into(),
+            code: "UNAUTHORZIED".into(),
+            message: "Unauthorized operation".into(),
             data: None,
         }
     }

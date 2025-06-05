@@ -5,12 +5,14 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    handler::{greeting, login, signup},
+    handler::{auth, login, logout, signup},
     router::AppState,
 };
 
 pub fn api_router() -> Router<Arc<AppState>> {
-    let get_router = Router::new().route("/", get(greeting));
+    let get_router = Router::new()
+        .route("/logout", get(logout))
+        .route("/auth", get(auth));
 
     let post_router = Router::new()
         .route("/signup", post(signup))

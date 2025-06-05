@@ -1,6 +1,7 @@
 mod api;
 //get
-pub use api::greeting;
+pub use api::auth;
+pub use api::logout;
 
 //post
 pub use api::login;
