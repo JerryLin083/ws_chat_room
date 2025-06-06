@@ -22,7 +22,7 @@ pub async fn signup(
     
       insert into users(account_id, username)
       select id, account from new_account
-      returning id
+      returning id, username
     "#;
 
     let row = sqlx::query(query_str)
@@ -48,12 +48,13 @@ pub async fn signup(
         })?;
 
     let user_id: i32 = row.get(0);
+    let user_name: String = row.get(1);
 
     //create sesion and set session_id on cookie
     let mut headers = HeaderMap::new();
 
     let session_manage = app_state.session_manager.clone();
-    let session_id = session_manage.new_session(user_id).await;
+    let session_id = session_manage.new_session(user_id, user_name).await;
     let cookie_value = format!("session_id={}; HttpOnly; Path=/; Secure", session_id);
 
     headers.insert("Set-Cookie", HeaderValue::from_str(&cookie_value).unwrap());
@@ -70,7 +71,7 @@ pub async fn login(
     account: Json<Account>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let query_str = r#"
-      select u.id from accounts a
+      select u.id, u.username from accounts a
       left join users u on u.account_id = a.id
       where a.account = $1 and a.password = $2
     "#;
@@ -105,12 +106,13 @@ pub async fn login(
         })?;
 
     let user_id: i32 = row.get(0);
+    let username:String = row.get(1);
 
     //create sesion and set session_id on cookie
     let mut headers = HeaderMap::new();
 
     let session_manage = app_state.session_manager.clone();
-    let session_id = session_manage.new_session(user_id).await;
+    let session_id = session_manage.new_session(user_id, username).await;
     let cookie_value = format!("session_id={}; HttpOnly; Path=/; Secure", session_id);
 
     headers.insert("Set-Cookie", HeaderValue::from_str(&cookie_value).unwrap());

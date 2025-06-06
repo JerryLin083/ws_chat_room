@@ -101,7 +101,6 @@ impl RoomManager {
                     *time = Instant::now() + idle;
 
                     match command.method {
-                        Method::KickOut => { /* TODO */ }
                         Method::Join => { /* TODO */ }
                         Method::Leave => { /* TODO */ }
                         Method::Send => {
@@ -110,9 +109,8 @@ impl RoomManager {
                             let _ = subscriber_sender.send(command);
                         }
                         Method::Close => {
-                            //TODO: check if owner
                             break;
-                         }
+                        }
                     }
                 }
               } => {}
@@ -151,7 +149,7 @@ impl RoomManager {
 
                 let _ = broadcast_sender.send(RoomCommand {
                     method: Method::Close,
-                    client_id: None,
+                    user: None,
                     message: None,
                 });
 
@@ -171,13 +169,12 @@ pub struct RoomState {
 #[derive(Debug, Clone)]
 pub struct RoomCommand {
     pub method: Method,
-    pub client_id: Option<i32>,
+    pub user: Option<String>,
     pub message: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Method {
-    KickOut,
     Send,
     Leave,
     Join,

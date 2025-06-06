@@ -27,7 +27,7 @@ impl SessionManager {
         })
     }
 
-    pub async fn check_session(self: &Arc<Self>, session_id: &str) -> Option<i32> {
+    pub async fn check_session(self: &Arc<Self>, session_id: &str) -> Option<(i32, String)> {
         let mut sessions = self.sessions.lock().await;
 
         match sessions.get_mut(session_id) {
@@ -35,19 +35,20 @@ impl SessionManager {
                 //update expiration
                 session.expiration = Instant::now() + self.duration;
 
-                Some(session.user_id)
+                Some((session.user_id, session.username.clone()))
             }
             None => None,
         }
     }
 
-    pub async fn new_session(self: &Arc<Self>, user_id: i32) -> String {
+    pub async fn new_session(self: &Arc<Self>, user_id: i32, username: String) -> String {
         let mut sessions = self.sessions.lock().await;
         let session_id = Uuid::new_v4();
         sessions.insert(
             session_id.to_string(),
             Session {
                 user_id,
+                username,
                 expiration: Instant::now() + self.duration,
             },
         );
@@ -106,7 +107,9 @@ impl SessionManager {
     }
 }
 
+#[derive(Clone)]
 pub struct Session {
     user_id: i32,
+    username: String,
     expiration: Instant,
 }
