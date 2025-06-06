@@ -2,6 +2,7 @@ use serde::Serialize;
 
 mod get;
 pub use get::auth;
+pub use get::create_room;
 pub use get::logout;
 
 mod post;

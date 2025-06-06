@@ -7,10 +7,7 @@ use api::api_router;
 mod static_file;
 use static_file::static_router;
 
-use crate::{
-    room_manager::{self, RoomManager},
-    session::SessionManager,
-};
+use crate::{room_manager::RoomManager, session::SessionManager};
 
 pub async fn router(
     pool: Pool<Postgres>,

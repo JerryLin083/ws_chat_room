@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use sqlx::{Pool, Postgres};
+use sqlx::{Error, Pool, Postgres};
 use tokio::{
     sync::{Mutex, broadcast, mpsc},
     time::sleep,
@@ -28,15 +28,14 @@ impl RoomManager {
         self: Arc<Self>,
         pool: Pool<Postgres>,
         room_name: &str,
-    ) -> Result<u64, String> {
+    ) -> Result<(mpsc::Sender<RoomCommand>, broadcast::Receiver<RoomCommand>), Error> {
         let (channel_sender, channel_receiver) = mpsc::channel(128);
-        let (subscriber_sender, _subscriber_receiver) = broadcast::channel(128);
+        let (subscriber_sender, subscriber_receiver) = broadcast::channel(128);
 
         //create room_id
         let room_id = Uuid::new_v4();
         let room_manager = self.clone();
         let mut rooms = room_manager.rooms.lock().await;
-
         rooms.insert(
             room_id.to_string(),
             RoomState {
@@ -48,24 +47,31 @@ impl RoomManager {
         //release mutex lock
         drop(rooms);
 
-        //spawn room handler
-        self.create_room(channel_receiver, subscriber_sender, room_id);
-
-        //TODO:insert room to DB
+        //insert room to DB
         let query_str = r#"
             insert into rooms(id, room_name)
             values($1, $2);
           "#;
 
         let result = sqlx::query(query_str)
-            .bind(&room_id.to_string())
+            .bind(room_id)
             .bind(room_name)
             .execute(&pool)
             .await;
 
         match result {
-            Ok(query_result) => Ok(query_result.rows_affected()),
-            Err(err) => Err(err.to_string()),
+            Ok(_query_result) => {
+                //spawn room handler
+                self.create_room(channel_receiver, subscriber_sender, room_id);
+
+                let sender = channel_sender.clone();
+                let receiver = subscriber_receiver;
+
+                return Ok((sender, receiver));
+            }
+            Err(err) => {
+                return Err(err);
+            }
         }
     }
 
@@ -99,9 +105,14 @@ impl RoomManager {
                         Method::Join => { /* TODO */ }
                         Method::Leave => { /* TODO */ }
                         Method::Send => {
+                            //TODO: insert message to db
+
                             let _ = subscriber_sender.send(command);
                         }
-                        Method::Close => { break; }
+                        Method::Close => {
+                            //TODO: check if owner
+                            break;
+                         }
                     }
                 }
               } => {}
@@ -112,13 +123,43 @@ impl RoomManager {
         });
     }
 
+    pub async fn join(
+        self: Arc<Self>,
+        room_id: &str,
+    ) -> Option<(mpsc::Sender<RoomCommand>, broadcast::Receiver<RoomCommand>)> {
+        let room_manager = self.clone();
+        let rooms = room_manager.rooms.lock().await;
+
+        if let Some(room_state) = rooms.get(room_id) {
+            let sender = room_state.channel_sender.clone();
+            let receiver = room_state.subscriber_sender.subscribe();
+
+            return Some((sender, receiver));
+        }
+
+        None
+    }
+
     pub async fn delete_room(self: Arc<Self>, room_id: &str) {
         let room_manager = self.clone();
         let mut rooms = room_manager.rooms.lock().await;
 
-        //TODO: send close message;
+        //send close message and remove room from rooms;
+        match rooms.get(room_id) {
+            Some(room) => {
+                let broadcast_sender = room.subscriber_sender.clone();
 
-        rooms.remove(room_id);
+                let _ = broadcast_sender.send(RoomCommand {
+                    method: Method::Close,
+                    client_id: None,
+                    message: None,
+                });
+
+                rooms.remove(room_id);
+            }
+
+            None => {}
+        }
     }
 }
 
@@ -130,8 +171,8 @@ pub struct RoomState {
 #[derive(Debug, Clone)]
 pub struct RoomCommand {
     pub method: Method,
-    pub client_id: String,
-    pub message: String,
+    pub client_id: Option<i32>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone)]
