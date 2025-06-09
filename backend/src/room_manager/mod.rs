@@ -89,13 +89,13 @@ impl RoomManager {
 
             tokio::select! {
                 _ = async {
-                  let time = close_time_for_timer.lock().await;
+                  let time = close_time_for_timer.lock().await.clone();
 
-                  while Instant::now() < *time {
+                  while Instant::now() < time {
                       sleep(idle).await;
                   };
                 } => {}
-                _ = async  {
+                _ = async {
                   while let Some(command) = channel_receiver.recv().await {
                     let mut time = close_time_for_room.lock().await;
                     *time = Instant::now() + idle;

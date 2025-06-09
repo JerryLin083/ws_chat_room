@@ -1,16 +1,17 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     Json,
     extract::{
-        State,
-        ws::{Message, WebSocketUpgrade},
+        Query, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
 use futures_util::{SinkExt, stream::StreamExt};
+use tokio::sync::{broadcast, mpsc};
 
 use crate::{
     handler::api::ApiResponse,
@@ -60,105 +61,200 @@ pub async fn auth(
 
 pub async fn create_room(
     ws: WebSocketUpgrade,
-    headers: HeaderMap,
+    Query(params): Query<HashMap<String, String>>,
     jar: CookieJar,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
-    let mut user = None;
-
-    //check auth
-    if let Some(session_cookie) = jar.get("session_id") {
+    // check auth
+    let user = if let Some(session_cookie) = jar.get("session_id") {
         let session_id = session_cookie.value();
 
         match app_state.session_manager.check_session(session_id).await {
-            Some((_id, username)) => {
-                user = Some(username);
-            }
-            None => {
-                return Err((
-                    StatusCode::UNAUTHORIZED,
-                    Json(ApiResponse::<()>::unauthorized()),
-                ));
-            }
+            Some((_id, username)) => Some(username),
+            None => None,
         }
     } else {
+        None
+    };
+
+    if user.is_none() {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(ApiResponse::<()>::unauthorized()),
         ));
     }
 
-    //get room_name from header
-    if let Some(header_value) = headers.get("x-room-name") {
-        if let Ok(room_name) = header_value.to_str() {
-            let room_manager = app_state.room_manager.clone();
-            if let Ok((channel_sender, mut broadcast_receiver)) =
-                room_manager.create(app_state.pool.clone(), room_name).await
-            {
-                let _ = ws.on_upgrade(move |stream| async move {
-                    let (mut stream_sender, mut stream_receiver) = stream.split();
+    // check params
+    let room_name = match params.get("room_name") {
+        Some(name) => name.clone(),
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse::<()>::error(
+                    "BAD_REQUEST",
+                    "Missing required query parameter: room_name",
+                )),
+            ));
+        }
+    };
 
-                    //TODO: listen room broadcast and send to client
-                    tokio::spawn(async move {
-                        while let Ok(command) = broadcast_receiver.recv().await {
-                            match command.method {
-                                room_manager::Method::Join => {}
-                                room_manager::Method::Send => {
-                                    let (user, message) =
-                                        (command.user.unwrap(), command.message.unwrap());
+    let user = user.unwrap();
+    let room_manager = app_state.room_manager.clone();
 
-                                    let _ = stream_sender
-                                        .send(Message::text(format!("{}: {}", user, message)))
-                                        .await;
-                                }
-                                room_manager::Method::Leave => {}
-                                room_manager::Method::Close => break,
-                            }
-                        }
-                    });
+    // create room
+    match room_manager
+        .create(app_state.pool.clone(), &room_name)
+        .await
+    {
+        Ok((channel_sender, broadcast_receiver)) => {
+            // upgrade
+            Ok(ws.on_upgrade(|stream| handle_ws(user, stream, channel_sender, broadcast_receiver)))
+        }
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::error(
+                "INTERNAL_SERVER_ERROR",
+                "Failed to create chat room.",
+            )),
+        )),
+    }
+}
 
-                    //TODO: read message from client, and send to room
-                    while let Some(Ok(message)) = stream_receiver.next().await {
-                        match message {
-                            Message::Text(bytes) => {
-                                let room_command = RoomCommand {
-                                    method: room_manager::Method::Send,
-                                    user: user.clone(),
-                                    message: Some(bytes.to_string()),
-                                };
+pub async fn join_room(
+    ws: WebSocketUpgrade,
+    Query(params): Query<HashMap<String, String>>,
+    jar: CookieJar,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    // check auth
+    let user = if let Some(session_cookie) = jar.get("session_id") {
+        let session_id = session_cookie.value();
 
-                                let _ = channel_sender.send(room_command).await;
-                            }
-                            Message::Close(_frame) => {
-                                let room_command = RoomCommand {
-                                    method: room_manager::Method::Leave,
-                                    user: user,
-                                    message: None,
-                                };
+        match app_state.session_manager.check_session(session_id).await {
+            Some((_id, username)) => Some(username),
+            None => None,
+        }
+    } else {
+        None
+    };
 
-                                let _ = channel_sender.send(room_command).await;
+    if user.is_none() {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse::<()>::unauthorized()),
+        ));
+    }
 
-                                break;
-                            }
-                            _ => unimplemented!(),
+    // check params
+    let room_id = match params.get("room_id") {
+        Some(id) => id.clone(),
+        None => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ApiResponse::<()>::error(
+                    "BAD_REQUEST",
+                    "Missing required query parameter: room_id",
+                )),
+            ));
+        }
+    };
+
+    let user = user.unwrap();
+    let room_manager = app_state.room_manager.clone();
+
+    match room_manager.join(&room_id).await {
+        Some((channel_sender, broadcast_receiver)) => {
+            Ok(ws.on_upgrade(|stream| handle_ws(user, stream, channel_sender, broadcast_receiver)))
+        }
+        None => Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse::<()>::error("BAD_REQUEST", "Room is not alive")),
+        )),
+    }
+}
+
+async fn handle_ws(
+    user: String,
+    stream: WebSocket,
+    channel_sender: mpsc::Sender<RoomCommand>,
+    mut broadcast_receiver: broadcast::Receiver<RoomCommand>,
+) {
+    let (mut stream_sender, mut stream_receiver) = stream.split();
+    let user_clone = user.clone();
+
+    // listening room broadcast
+    tokio::spawn(async move {
+        while let Ok(command) = broadcast_receiver.recv().await {
+            match command.method {
+                room_manager::Method::Join => {
+                    // TODO: when user join
+                }
+                room_manager::Method::Send => {
+                    if let (Some(sender_user), Some(message)) = (command.user, command.message) {
+                        let formatted_message = format!("{}: {}", sender_user, message);
+                        println!("Broadcast: {}", formatted_message);
+
+                        if let Err(err) = stream_sender.send(Message::text(formatted_message)).await
+                        {
+                            // TODO:
+
+                            eprint!("Error from send to room: {}", err.to_string());
+                            break;
                         }
                     }
-                });
-            } else {
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(ApiResponse::error(
-                        "INTERNAL_SERVER_ERROR",
-                        "Failed to create chat room.",
-                    )),
-                ));
+                }
+                room_manager::Method::Leave => {
+                    // TODO: when user leave or disconnect
+                }
+                room_manager::Method::Close => {
+                    break;
+                }
             }
+        }
+    });
 
-            return Ok(());
+    // read message from client
+    while let Some(message_result) = stream_receiver.next().await {
+        match message_result {
+            Ok(Message::Text(text)) => {
+                println!("Receiver message: {}", text.to_string());
+
+                let room_command = RoomCommand {
+                    method: room_manager::Method::Send,
+                    user: Some(user_clone.clone()),
+                    message: Some(text.to_string()),
+                };
+
+                if let Err(_) = channel_sender.send(room_command).await {
+                    // room close
+                    break;
+                }
+            }
+            Ok(Message::Close(_frame)) => {
+                // client leave or disconnect
+                let room_command = RoomCommand {
+                    method: room_manager::Method::Leave,
+                    user: Some(user_clone.clone()),
+                    message: None,
+                };
+
+                let _ = channel_sender.send(room_command).await;
+                break;
+            }
+            Ok(_) => {
+                unimplemented!();
+            }
+            Err(_) => {
+                break;
+            }
         }
     }
-    return Err((
-        StatusCode::BAD_REQUEST,
-        Json(ApiResponse::<()>::error("BAD_REQUEST", "Invalid Header")),
-    ));
+
+    // send leave message
+    let room_command = RoomCommand {
+        method: room_manager::Method::Leave,
+        user: Some(user_clone),
+        message: None,
+    };
+    let _ = channel_sender.send(room_command).await;
 }

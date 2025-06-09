@@ -2,6 +2,7 @@ mod api;
 //get
 pub use api::auth;
 pub use api::create_room;
+pub use api::join_room;
 pub use api::logout;
 
 //post

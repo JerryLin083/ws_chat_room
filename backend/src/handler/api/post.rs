@@ -50,13 +50,12 @@ pub async fn signup(
     let user_id: i32 = row.get(0);
     let user_name: String = row.get(1);
 
-    //create sesion and set session_id on cookie
-    let mut headers = HeaderMap::new();
-
+    //create sesion and set session_id in cookie
     let session_manage = app_state.session_manager.clone();
     let session_id = session_manage.new_session(user_id, user_name).await;
+    
+    let mut headers = HeaderMap::new();
     let cookie_value = format!("session_id={}; HttpOnly; Path=/; Secure", session_id);
-
     headers.insert("Set-Cookie", HeaderValue::from_str(&cookie_value).unwrap());
 
     Ok((
@@ -108,13 +107,12 @@ pub async fn login(
     let user_id: i32 = row.get(0);
     let username:String = row.get(1);
 
-    //create sesion and set session_id on cookie
-    let mut headers = HeaderMap::new();
-
+    //create sesion and set session_id in cookie
     let session_manage = app_state.session_manager.clone();
     let session_id = session_manage.new_session(user_id, username).await;
+    
+    let mut headers = HeaderMap::new();
     let cookie_value = format!("session_id={}; HttpOnly; Path=/; Secure", session_id);
-
     headers.insert("Set-Cookie", HeaderValue::from_str(&cookie_value).unwrap());
 
     Ok((
