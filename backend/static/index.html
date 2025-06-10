@@ -40,6 +40,8 @@
       placeholder="chat"
     />
 
+    <button id="leave" type="button">Leave Chat</button>
+
     <script>
       (async () => {
         let res = await fetch("api/login", {
@@ -57,6 +59,7 @@
           const join_btn = document.querySelector("#join-chat");
           const textarea = document.querySelector("#chat");
           const input = document.querySelector("#input");
+          const leave_btn = document.querySelector("#leave");
 
           create_btn.addEventListener("click", function (e) {
             e.preventDefault();
@@ -100,6 +103,12 @@
                 input.value = "";
               }
             };
+
+            leave_btn.addEventListener("click", function (e) {
+              e.preventDefault();
+
+              websocket.close();
+            });
           });
 
           join_btn.addEventListener("click", function (e) {
@@ -144,6 +153,12 @@
                 input.value = "";
               }
             };
+
+            leave_btn.addEventListener("click", function (e) {
+              e.preventDefault();
+
+              websocket.close();
+            });
           });
         } else {
           console.error("Failed to login");

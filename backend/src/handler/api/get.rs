@@ -1,5 +1,3 @@
-use std::{collections::HashMap, sync::Arc};
-
 use axum::{
     Json,
     extract::{
@@ -11,6 +9,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use futures_util::{SinkExt, stream::StreamExt};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::{
@@ -183,11 +182,11 @@ async fn handle_ws(
     let user = user.clone();
 
     // listening room broadcast
+    //TODO: drop receiver after self leave the room;
     tokio::spawn(async move {
         while let Ok(command) = broadcast_receiver.recv().await {
             match command.method {
                 room_manager::Method::Join => {
-                    // TODO: when user join
                     let stream_command = StreamCommand::join(command.user.unwrap());
 
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
@@ -208,7 +207,9 @@ async fn handle_ws(
                     let stream_command = StreamCommand::leave(command.user.unwrap());
 
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
-                        eprintln!("Error on send message: {}", err.to_string());
+                        println!("Error: {}", err.to_string());
+
+                        break;
                     }
                 }
                 room_manager::Method::Close => {
@@ -236,19 +237,11 @@ async fn handle_ws(
 
                             let _ = channel_sender.send(room_command).await;
                         }
-                        StreamMethod::Leave => {
-                            let room_command = RoomCommand::leave(user.clone());
-
-                            let _ = channel_sender.send(room_command).await;
-                        }
+                        _ => {}
                     }
                 };
             }
             Ok(Message::Close(_frame)) => {
-                // client leave or disconnect
-                let room_command = RoomCommand::leave(user.clone());
-
-                let _ = channel_sender.send(room_command).await;
                 break;
             }
             Ok(_) => {
