@@ -1,3 +1,5 @@
+use axum::Json;
+use serde::Deserialize;
 use serde::Serialize;
 
 mod get;
@@ -61,4 +63,54 @@ where
             data: None,
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StreamCommand {
+    method: StreamMethod,
+    message: String,
+    sender: String,
+}
+
+impl StreamCommand {
+    pub fn join(user: String) -> String {
+        let message = format!("User {} join the room", user);
+
+        let stream_command = StreamCommand {
+            method: StreamMethod::Join,
+            message: message,
+            sender: "System".into(),
+        };
+
+        serde_json::to_string(&stream_command).unwrap()
+    }
+
+    pub fn send(user: String, message: String) -> String {
+        let stream_command = StreamCommand {
+            method: StreamMethod::Send,
+            message: message,
+            sender: user,
+        };
+
+        serde_json::to_string(&stream_command).unwrap()
+    }
+
+    pub fn leave(user: String) -> String {
+        let message = format!("User {} leave the room", user);
+
+        let stream_command = StreamCommand {
+            method: StreamMethod::Leave,
+            message: message,
+            sender: "System".into(),
+        };
+
+        serde_json::to_string(&stream_command).unwrap()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum StreamMethod {
+    Send,
+    Join,
+    Leave,
 }

@@ -14,7 +14,7 @@ use futures_util::{SinkExt, stream::StreamExt};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::{
-    handler::api::ApiResponse,
+    handler::api::{ApiResponse, StreamCommand, StreamMethod},
     room_manager::{self, RoomCommand},
     router::AppState,
 };
@@ -180,7 +180,7 @@ async fn handle_ws(
     mut broadcast_receiver: broadcast::Receiver<RoomCommand>,
 ) {
     let (mut stream_sender, mut stream_receiver) = stream.split();
-    let user_clone = user.clone();
+    let user = user.clone();
 
     // listening room broadcast
     tokio::spawn(async move {
@@ -188,23 +188,28 @@ async fn handle_ws(
             match command.method {
                 room_manager::Method::Join => {
                     // TODO: when user join
+                    let stream_command = StreamCommand::join(command.user.unwrap());
+
+                    if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
+                        //TODO: handle error
+                        eprintln!("Error on send message: {}", err.to_string());
+                    }
                 }
                 room_manager::Method::Send => {
-                    if let (Some(sender_user), Some(message)) = (command.user, command.message) {
-                        let formatted_message = format!("{}: {}", sender_user, message);
-                        println!("Broadcast: {}", formatted_message);
+                    let stream_command =
+                        StreamCommand::send(command.user.unwrap(), command.message.unwrap());
 
-                        if let Err(err) = stream_sender.send(Message::text(formatted_message)).await
-                        {
-                            // TODO:
-
-                            eprint!("Error from send to room: {}", err.to_string());
-                            break;
-                        }
+                    if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
+                        eprintln!("Error on send message: {}", err.to_string());
                     }
                 }
                 room_manager::Method::Leave => {
                     // TODO: when user leave or disconnect
+                    let stream_command = StreamCommand::leave(command.user.unwrap());
+
+                    if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
+                        eprintln!("Error on send message: {}", err.to_string());
+                    }
                 }
                 room_manager::Method::Close => {
                     break;
@@ -217,26 +222,31 @@ async fn handle_ws(
     while let Some(message_result) = stream_receiver.next().await {
         match message_result {
             Ok(Message::Text(text)) => {
-                println!("Receiver message: {}", text.to_string());
+                //parse StreamCommand and send RoomCommand to room;
+                if let Ok(stream_commnad) = Json::<StreamCommand>::from_bytes(text.as_bytes()) {
+                    match stream_commnad.method {
+                        StreamMethod::Join => {
+                            let room_command = RoomCommand::join(user.clone());
 
-                let room_command = RoomCommand {
-                    method: room_manager::Method::Send,
-                    user: Some(user_clone.clone()),
-                    message: Some(text.to_string()),
+                            let _ = channel_sender.send(room_command).await;
+                        }
+                        StreamMethod::Send => {
+                            let room_command =
+                                RoomCommand::send(user.clone(), stream_commnad.message.clone());
+
+                            let _ = channel_sender.send(room_command).await;
+                        }
+                        StreamMethod::Leave => {
+                            let room_command = RoomCommand::leave(user.clone());
+
+                            let _ = channel_sender.send(room_command).await;
+                        }
+                    }
                 };
-
-                if let Err(_) = channel_sender.send(room_command).await {
-                    // room close
-                    break;
-                }
             }
             Ok(Message::Close(_frame)) => {
                 // client leave or disconnect
-                let room_command = RoomCommand {
-                    method: room_manager::Method::Leave,
-                    user: Some(user_clone.clone()),
-                    message: None,
-                };
+                let room_command = RoomCommand::leave(user.clone());
 
                 let _ = channel_sender.send(room_command).await;
                 break;
@@ -253,7 +263,7 @@ async fn handle_ws(
     // send leave message
     let room_command = RoomCommand {
         method: room_manager::Method::Leave,
-        user: Some(user_clone),
+        user: Some(user),
         message: None,
     };
     let _ = channel_sender.send(room_command).await;

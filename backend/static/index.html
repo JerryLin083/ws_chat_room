@@ -68,7 +68,9 @@
 
             websocket.onopen = function () {
               console.log("connection opened");
-              websocket.send(username.value);
+              websocket.send(
+                JSON.stringify({ method: "Join", message: "", sender: "" })
+              );
             };
 
             const btn = this;
@@ -79,13 +81,22 @@
             };
 
             websocket.onmessage = function (e) {
-              console.log("received message: " + e.data);
+              let data = JSON.parse(e.data);
+
+              console.log("received message: " + data);
+
               textarea.value += e.data + "\r\n";
             };
 
             input.onkeydown = function (e) {
               if (e.key == "Enter") {
-                websocket.send(input.value);
+                let command = {
+                  method: "Send",
+                  message: input.value,
+                  sender: "",
+                };
+
+                websocket.send(JSON.stringify(command));
                 input.value = "";
               }
             };
@@ -101,7 +112,9 @@
 
             websocket.onopen = function () {
               console.log("connection opened");
-              websocket.send(username.value);
+              websocket.send(
+                JSON.stringify({ method: "Join", message: "", sender: "" })
+              );
             };
 
             const btn = this;
@@ -112,13 +125,22 @@
             };
 
             websocket.onmessage = function (e) {
-              console.log("received message: " + e.data);
+              let data = JSON.parse(e.data);
+
+              console.log("received message: " + data);
+
               textarea.value += e.data + "\r\n";
             };
 
             input.onkeydown = function (e) {
               if (e.key == "Enter") {
-                websocket.send(input.value);
+                let command = {
+                  method: "Send",
+                  message: input.value,
+                  sender: "",
+                };
+
+                websocket.send(JSON.stringify(command));
                 input.value = "";
               }
             };

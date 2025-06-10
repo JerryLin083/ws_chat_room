@@ -101,15 +101,11 @@ impl RoomManager {
                     *time = Instant::now() + idle;
 
                     match command.method {
-                        Method::Join => { /* TODO */ }
-                        Method::Leave => { /* TODO */ }
-                        Method::Send => {
-                            //TODO: insert message to db
-
-                            let _ = subscriber_sender.send(command);
-                        }
                         Method::Close => {
                             break;
+                        }
+                        _ => {
+                            let _ = subscriber_sender.send(command);
                         }
                     }
                 }
@@ -171,6 +167,32 @@ pub struct RoomCommand {
     pub method: Method,
     pub user: Option<String>,
     pub message: Option<String>,
+}
+
+impl RoomCommand {
+    pub fn join(user: String) -> Self {
+        RoomCommand {
+            method: Method::Join,
+            user: Some(user),
+            message: None,
+        }
+    }
+
+    pub fn send(user: String, message: String) -> Self {
+        RoomCommand {
+            method: Method::Send,
+            user: Some(user),
+            message: Some(message),
+        }
+    }
+
+    pub fn leave(user: String) -> Self {
+        RoomCommand {
+            method: Method::Leave,
+            user: Some(user),
+            message: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
