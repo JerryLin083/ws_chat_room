@@ -9,11 +9,12 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use futures_util::{SinkExt, stream::StreamExt};
+use sqlx::Row;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
 
 use crate::{
-    handler::api::{ApiResponse, StreamCommand, StreamMethod},
+    handler::api::{ApiResponse, Room, StreamCommand, StreamMethod},
     room_manager::{self, RoomCommand},
     router::AppState,
 };
@@ -262,4 +263,57 @@ async fn handle_ws(
 
     // send leave message
     let _ = channel_sender.send(RoomCommand::leave(user.1)).await;
+}
+
+pub async fn rooms(
+    jar: CookieJar,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    // check auth
+    if let Some(session_cookie) = jar.get("session_id") {
+        let session_id = session_cookie.value();
+
+        match app_state.session_manager.check_session(session_id).await {
+            Some(_) => {
+                let query_str = r#"
+                    select id, room_name from rooms
+                    where closed_at is null;
+                "#;
+
+                let rows = sqlx::query(query_str)
+                    .fetch_all(&app_state.pool)
+                    .await
+                    .map_err(|err| {
+                        tracing::error!("Failed to fetch rooms: {:?}", err);
+
+                        (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(ApiResponse::<()>::error(
+                                "INTERNAL_SERVER_ERROR",
+                                "Failed to fetch rooms",
+                            )),
+                        )
+                    })?;
+
+                let rooms: Vec<Room> = rows
+                    .into_iter()
+                    .map(|row| Room::new(row.get(0), row.get(1)))
+                    .collect();
+
+                return Ok(Json(ApiResponse::<Vec<Room>>::success_with_data("", rooms)));
+            }
+            None => Err((
+                StatusCode::UNAUTHORIZED,
+                Json(ApiResponse::<()>::unauthorized()),
+            )),
+        }
+    } else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse::<()>::error(
+                "Unauthorized",
+                "Invalid Session ID Header",
+            )),
+        ));
+    }
 }

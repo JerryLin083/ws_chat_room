@@ -168,6 +168,8 @@ impl RoomManager {
                 let _ = broadcast_sender.send(RoomCommand::close());
 
                 rooms.remove(room_id);
+
+                //TODO: update closed_at;
             }
 
             None => {}

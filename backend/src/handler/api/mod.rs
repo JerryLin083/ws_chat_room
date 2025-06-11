@@ -6,10 +6,12 @@ pub use get::auth;
 pub use get::create_room;
 pub use get::join_room;
 pub use get::logout;
+pub use get::rooms;
 
 mod post;
 pub use post::login;
 pub use post::signup;
+use uuid::Uuid;
 
 mod patch;
 
@@ -112,4 +114,19 @@ pub enum StreamMethod {
     Send,
     Join,
     Leave,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Room {
+    room_id: String,
+    room_name: String,
+}
+
+impl Room {
+    pub fn new(room_id: Uuid, room_name: String) -> Self {
+        Room {
+            room_id: room_id.to_string(),
+            room_name,
+        }
+    }
 }
