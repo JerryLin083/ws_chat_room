@@ -28,7 +28,15 @@ impl RoomManager {
         self: Arc<Self>,
         pool: Pool<Postgres>,
         room_name: &str,
-    ) -> Result<(mpsc::Sender<RoomCommand>, broadcast::Receiver<RoomCommand>), Error> {
+        db_message_sender: mpsc::Sender<RoomCommand>,
+    ) -> Result<
+        (
+            mpsc::Sender<RoomCommand>,
+            broadcast::Receiver<RoomCommand>,
+            String,
+        ),
+        Error,
+    > {
         let (channel_sender, channel_receiver) = mpsc::channel(128);
         let (subscriber_sender, subscriber_receiver) = broadcast::channel(128);
 
@@ -62,12 +70,17 @@ impl RoomManager {
         match result {
             Ok(_query_result) => {
                 //spawn room handler
-                self.create_room(channel_receiver, subscriber_sender, room_id);
+                self.create_room(
+                    channel_receiver,
+                    subscriber_sender,
+                    room_id,
+                    db_message_sender,
+                );
 
                 let sender = channel_sender.clone();
                 let receiver = subscriber_receiver;
 
-                return Ok((sender, receiver));
+                return Ok((sender, receiver, room_id.to_string()));
             }
             Err(err) => {
                 return Err(err);
@@ -80,6 +93,7 @@ impl RoomManager {
         mut channel_receiver: mpsc::Receiver<RoomCommand>,
         subscriber_sender: broadcast::Sender<RoomCommand>,
         room_id: Uuid,
+        db_message_sender: mpsc::Sender<RoomCommand>,
     ) {
         tokio::spawn(async move {
             let idle = self.idle;
@@ -103,6 +117,14 @@ impl RoomManager {
                     match command.method {
                         Method::Close => {
                             break;
+                        }
+                        Method::Send => {
+                            let _ = subscriber_sender.send(command.clone());
+
+                            //TODO: insert message to db
+                            if let Err(err) = db_message_sender.send(command).await{
+                                eprintln!("Failed to insert message: {:?}", err);
+                            }
                         }
                         _ => {
                             let _ = subscriber_sender.send(command);
@@ -143,11 +165,7 @@ impl RoomManager {
             Some(room) => {
                 let broadcast_sender = room.subscriber_sender.clone();
 
-                let _ = broadcast_sender.send(RoomCommand {
-                    method: Method::Close,
-                    user: None,
-                    message: None,
-                });
+                let _ = broadcast_sender.send(RoomCommand::close());
 
                 rooms.remove(room_id);
             }
@@ -165,6 +183,8 @@ pub struct RoomState {
 #[derive(Debug, Clone)]
 pub struct RoomCommand {
     pub method: Method,
+    pub room_id: Option<String>,
+    pub user_id: Option<i32>,
     pub user: Option<String>,
     pub message: Option<String>,
 }
@@ -173,14 +193,18 @@ impl RoomCommand {
     pub fn join(user: String) -> Self {
         RoomCommand {
             method: Method::Join,
+            room_id: None,
+            user_id: None,
             user: Some(user),
             message: None,
         }
     }
 
-    pub fn send(user: String, message: String) -> Self {
+    pub fn send(user_id: i32, user: String, room_id: String, message: String) -> Self {
         RoomCommand {
             method: Method::Send,
+            room_id: Some(room_id),
+            user_id: Some(user_id),
             user: Some(user),
             message: Some(message),
         }
@@ -189,7 +213,19 @@ impl RoomCommand {
     pub fn leave(user: String) -> Self {
         RoomCommand {
             method: Method::Leave,
+            room_id: None,
+            user_id: None,
             user: Some(user),
+            message: None,
+        }
+    }
+
+    pub fn close() -> Self {
+        RoomCommand {
+            method: Method::Close,
+            room_id: None,
+            user_id: None,
+            user: None,
             message: None,
         }
     }

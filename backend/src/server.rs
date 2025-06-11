@@ -2,14 +2,24 @@ use axum_server::tls_rustls::RustlsConfig;
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use crate::{
-    db::db_connection, room_manager::RoomManager, router::router, session::SessionManager,
+    db::{db_connection, db_messages_connection},
+    room_manager::RoomManager,
+    router::router,
+    session::SessionManager,
 };
 
 pub async fn run() {
     let pool = db_connection().await;
     let session_manager = SessionManager::build(Duration::from_secs(30 * 60));
     let room_manager = RoomManager::build(Duration::from_secs(30 * 60));
-    let router = router(pool, session_manager.clone(), room_manager.clone()).await;
+    let db_message_sender = db_messages_connection().await;
+    let router = router(
+        pool,
+        session_manager.clone(),
+        room_manager.clone(),
+        db_message_sender.clone(),
+    )
+    .await;
 
     //run session background checker
     let session_manager_for_bg = session_manager.clone();

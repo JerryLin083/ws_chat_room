@@ -1,5 +1,5 @@
 use axum::{
-    Json,
+    Extension, Json,
     extract::{
         Query, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -62,6 +62,7 @@ pub async fn create_room(
     ws: WebSocketUpgrade,
     Query(params): Query<HashMap<String, String>>,
     jar: CookieJar,
+    Extension(db_message_sender): Extension<mpsc::Sender<RoomCommand>>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     // check auth
@@ -69,7 +70,7 @@ pub async fn create_room(
         let session_id = session_cookie.value();
 
         match app_state.session_manager.check_session(session_id).await {
-            Some((_id, username)) => Some(username),
+            Some((id, username)) => Some((id, username)),
             None => None,
         }
     } else {
@@ -102,12 +103,14 @@ pub async fn create_room(
 
     // create room
     match room_manager
-        .create(app_state.pool.clone(), &room_name)
+        .create(app_state.pool.clone(), &room_name, db_message_sender)
         .await
     {
-        Ok((channel_sender, broadcast_receiver)) => {
+        Ok((channel_sender, broadcast_receiver, room_id)) => {
             // upgrade
-            Ok(ws.on_upgrade(|stream| handle_ws(user, stream, channel_sender, broadcast_receiver)))
+            Ok(ws.on_upgrade(|stream| {
+                handle_ws(user, room_id, stream, channel_sender, broadcast_receiver)
+            }))
         }
         Err(_) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -130,7 +133,7 @@ pub async fn join_room(
         let session_id = session_cookie.value();
 
         match app_state.session_manager.check_session(session_id).await {
-            Some((_id, username)) => Some(username),
+            Some((id, username)) => Some((id, username)),
             None => None,
         }
     } else {
@@ -162,9 +165,9 @@ pub async fn join_room(
     let room_manager = app_state.room_manager.clone();
 
     match room_manager.join(&room_id).await {
-        Some((channel_sender, broadcast_receiver)) => {
-            Ok(ws.on_upgrade(|stream| handle_ws(user, stream, channel_sender, broadcast_receiver)))
-        }
+        Some((channel_sender, broadcast_receiver)) => Ok(ws.on_upgrade(|stream| {
+            handle_ws(user, room_id, stream, channel_sender, broadcast_receiver)
+        })),
         None => Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse::<()>::error("BAD_REQUEST", "Room is not alive")),
@@ -173,7 +176,8 @@ pub async fn join_room(
 }
 
 async fn handle_ws(
-    user: String,
+    user: (i32, String),
+    room_id: String,
     stream: WebSocket,
     channel_sender: mpsc::Sender<RoomCommand>,
     mut broadcast_receiver: broadcast::Receiver<RoomCommand>,
@@ -182,7 +186,6 @@ async fn handle_ws(
     let user = user.clone();
 
     // listening room broadcast
-    //TODO: drop receiver after self leave the room;
     tokio::spawn(async move {
         while let Ok(command) = broadcast_receiver.recv().await {
             match command.method {
@@ -203,9 +206,9 @@ async fn handle_ws(
                     }
                 }
                 room_manager::Method::Leave => {
-                    // TODO: when user leave or disconnect
                     let stream_command = StreamCommand::leave(command.user.unwrap());
 
+                    //TODO: handle error correct
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
                         println!("Error: {}", err.to_string());
 
@@ -227,13 +230,17 @@ async fn handle_ws(
                 if let Ok(stream_commnad) = Json::<StreamCommand>::from_bytes(text.as_bytes()) {
                     match stream_commnad.method {
                         StreamMethod::Join => {
-                            let room_command = RoomCommand::join(user.clone());
+                            let room_command = RoomCommand::join(user.1.clone());
 
                             let _ = channel_sender.send(room_command).await;
                         }
                         StreamMethod::Send => {
-                            let room_command =
-                                RoomCommand::send(user.clone(), stream_commnad.message.clone());
+                            let room_command = RoomCommand::send(
+                                user.0,
+                                user.1.clone(),
+                                room_id.clone(),
+                                stream_commnad.message.clone(),
+                            );
 
                             let _ = channel_sender.send(room_command).await;
                         }
@@ -254,10 +261,5 @@ async fn handle_ws(
     }
 
     // send leave message
-    let room_command = RoomCommand {
-        method: room_manager::Method::Leave,
-        user: Some(user),
-        message: None,
-    };
-    let _ = channel_sender.send(room_command).await;
+    let _ = channel_sender.send(RoomCommand::leave(user.1)).await;
 }
