@@ -105,10 +105,13 @@ impl RoomManager {
 
             tokio::select! {
                 _ = async {
-                  let time = close_time_for_timer.lock().await.clone();
+                  let mut expiry = close_time_for_timer.lock().await.clone();
 
-                  while Instant::now() < time {
-                      sleep(idle).await;
+                  while Instant::now() < expiry {
+                    sleep(idle).await;
+
+                    let timer = close_time_for_timer.lock().await;
+                    expiry = timer.clone();
                   };
                 } => {}
                 _ = async {

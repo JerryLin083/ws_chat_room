@@ -187,7 +187,7 @@ async fn handle_ws(
     mut broadcast_receiver: broadcast::Receiver<RoomCommand>,
 ) {
     let (shutdown_sender, mut shutdown_receiver) = mpsc::channel(1);
-    let (mut stream_sender, mut stream_receiver) = stream.split();
+    let (mut stream_sender, stream_receiver) = stream.split();
     let user = user.clone();
 
     // listening room broadcast
