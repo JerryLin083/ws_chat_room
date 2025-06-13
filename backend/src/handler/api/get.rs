@@ -8,7 +8,10 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::CookieJar;
-use futures_util::{SinkExt, stream::StreamExt};
+use futures_util::{
+    SinkExt,
+    stream::{SplitStream, StreamExt},
+};
 use sqlx::Row;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
@@ -183,6 +186,7 @@ async fn handle_ws(
     channel_sender: mpsc::Sender<RoomCommand>,
     mut broadcast_receiver: broadcast::Receiver<RoomCommand>,
 ) {
+    let (shutdown_sender, mut shutdown_receiver) = mpsc::channel(1);
     let (mut stream_sender, mut stream_receiver) = stream.split();
     let user = user.clone();
 
@@ -195,7 +199,7 @@ async fn handle_ws(
 
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
                         //TODO: handle error
-                        eprintln!("Error on send message: {}", err.to_string());
+                        eprintln!("Error on join: {}", err.to_string());
                     }
                 }
                 room_manager::Method::Send => {
@@ -211,19 +215,35 @@ async fn handle_ws(
 
                     //TODO: handle error correct
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
-                        println!("Error: {}", err.to_string());
+                        println!("Error on leave: {}", err.to_string());
 
                         break;
                     }
                 }
                 room_manager::Method::Close => {
+                    let _ = shutdown_sender.send(());
+
                     break;
                 }
             }
         }
     });
 
-    // read message from client
+    tokio::select! {
+        _ = shutdown_receiver.recv() => {}
+        _ = async {
+            // read message from client
+            handle_stream_receiver(stream_receiver, channel_sender, room_id, user).await;
+        } => {}
+    }
+}
+
+async fn handle_stream_receiver(
+    mut stream_receiver: SplitStream<WebSocket>,
+    channel_sender: mpsc::Sender<RoomCommand>,
+    room_id: String,
+    user: (i32, String),
+) {
     while let Some(message_result) = stream_receiver.next().await {
         match message_result {
             Ok(Message::Text(text)) => {
@@ -233,7 +253,9 @@ async fn handle_ws(
                         StreamMethod::Join => {
                             let room_command = RoomCommand::join(user.1.clone());
 
-                            let _ = channel_sender.send(room_command).await;
+                            if let Err(_err) = channel_sender.send(room_command).await {
+                                break;
+                            };
                         }
                         StreamMethod::Send => {
                             let room_command = RoomCommand::send(
@@ -243,7 +265,9 @@ async fn handle_ws(
                                 stream_commnad.message.clone(),
                             );
 
-                            let _ = channel_sender.send(room_command).await;
+                            if let Err(_err) = channel_sender.send(room_command).await {
+                                break;
+                            };
                         }
                         _ => {}
                     }

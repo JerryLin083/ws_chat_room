@@ -73,6 +73,7 @@ impl RoomManager {
                 self.create_room(
                     channel_receiver,
                     subscriber_sender,
+                    pool.clone(),
                     room_id,
                     db_message_sender,
                 );
@@ -92,6 +93,7 @@ impl RoomManager {
         self: Arc<Self>,
         mut channel_receiver: mpsc::Receiver<RoomCommand>,
         subscriber_sender: broadcast::Sender<RoomCommand>,
+        pool: Pool<Postgres>,
         room_id: Uuid,
         db_message_sender: mpsc::Sender<RoomCommand>,
     ) {
@@ -135,7 +137,7 @@ impl RoomManager {
             };
 
             //remove room from hashmap
-            self.delete_room(&room_id.to_string()).await;
+            self.delete_room(pool, room_id).await;
         });
     }
 
@@ -156,20 +158,29 @@ impl RoomManager {
         None
     }
 
-    pub async fn delete_room(self: Arc<Self>, room_id: &str) {
+    pub async fn delete_room(self: Arc<Self>, pool: Pool<Postgres>, room_id: Uuid) {
         let room_manager = self.clone();
         let mut rooms = room_manager.rooms.lock().await;
 
         //send close message and remove room from rooms;
-        match rooms.get(room_id) {
+        match rooms.get(&room_id.to_string()) {
             Some(room) => {
                 let broadcast_sender = room.subscriber_sender.clone();
 
                 let _ = broadcast_sender.send(RoomCommand::close());
 
-                rooms.remove(room_id);
+                rooms.remove(&room_id.to_string());
 
                 //TODO: update closed_at;
+                let query_str = r#"
+                    update rooms set closed_at = now() where id = $1;
+                "#;
+
+                let _ = sqlx::query(query_str)
+                    .bind(room_id)
+                    .execute(&pool)
+                    .await
+                    .map_err(|err| eprintln!("Failed to close room: {:?}", err));
             }
 
             None => {}

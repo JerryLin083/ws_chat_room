@@ -11,7 +11,7 @@ use crate::{
 pub async fn run() {
     let pool = db_connection().await;
     let session_manager = SessionManager::build(Duration::from_secs(30 * 60));
-    let room_manager = RoomManager::build(Duration::from_secs(30 * 60));
+    let room_manager = RoomManager::build(Duration::from_secs(1 * 60));
     let db_message_sender = db_messages_connection().await;
     let router = router(
         pool,
