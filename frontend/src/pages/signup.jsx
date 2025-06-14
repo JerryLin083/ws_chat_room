@@ -65,7 +65,7 @@ function SignUp() {
         </div>
 
         {error() ? <p>{error()}</p> : null}
-        {false ? (
+        {isSubmit() ? (
           <button type="button" class="disabled-button" disabled>
             waiting...
           </button>
