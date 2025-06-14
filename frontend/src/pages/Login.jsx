@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { A } from "@solidjs/router";
 import "./login.css";
 
@@ -7,6 +7,15 @@ function Login() {
   const [password, setPassword] = createSignal("");
   const [logging, setLogging] = createSignal(false);
   const [error, setError] = createSignal("");
+
+  //check auth first
+  onMount(async () => {
+    let auth = await fetch("api/auth");
+
+    if (auth.ok) {
+      window.location.replace("/");
+    }
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +35,7 @@ function Login() {
         setError(error.message);
         throw new Error(error.message);
       }
-      window.location.assign("/");
+      window.location.replace("/");
     } catch (err) {
       console.error(err);
     } finally {

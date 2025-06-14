@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 
 import "./signup.css";
 
@@ -7,6 +7,15 @@ function SignUp() {
   const [password, setPassword] = createSignal("");
   const [isSubmit, setIsSubmit] = createSignal(false);
   const [error, setError] = createSignal("");
+
+  //check auth first
+  onMount(async () => {
+    let auth = await fetch("api/auth");
+
+    if (auth.ok) {
+      window.location.replace("/");
+    }
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +40,7 @@ function SignUp() {
         throw new Error(error.message);
       }
 
-      window.location.assign("/");
+      window.location.replace("/");
     } catch (err) {
       console.error(err);
     } finally {
