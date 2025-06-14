@@ -1,0 +1,20 @@
+.layout {
+  min-width: 720px;
+  min-height: 90vh;
+  border-radius: 5px;
+  margin: 2rem 4rem;
+  background-color: #292929;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  height: calc(90vh - 100px);
+}
+
+@media (prefers-color-scheme: light) {
+  .layout {
+    background-color: #f8f8f8;
+  }
+}
