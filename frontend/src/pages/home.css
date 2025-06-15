@@ -1,0 +1,15 @@
+.search-bar-container {
+  position: relative;
+  display: flex;
+  margin: 1rem 0.5rem;
+}
+.search-bar-container > p {
+  position: absolute;
+  right: 7px;
+  top: -3px;
+}
+
+.rooms-container {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}

@@ -77,7 +77,7 @@ function Login() {
             waiting...
           </button>
         ) : (
-          <button>Sign up</button>
+          <button>Log in</button>
         )}
       </form>
       <A href="/signup">Sign up now</A>

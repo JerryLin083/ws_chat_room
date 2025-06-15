@@ -1,0 +1,21 @@
+.room-card-container {
+  background-color: #000;
+  margin: 0.5rem 0.5rem;
+  padding: 1rem;
+  border-radius: 5px;
+  box-shadow: 3px 3px 10px #404040;
+}
+
+.room-card-container > button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+@media (prefers-color-scheme: light) {
+  .room-card-container {
+    background-color: #edebeb;
+    box-shadow: 3px 3px 10px #d0d0d0;
+  }
+}

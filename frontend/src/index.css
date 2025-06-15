@@ -49,6 +49,10 @@ input {
   text-indent: 1rem;
 }
 
+input:focus {
+  outline: 1px solid lightblue;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -70,6 +74,10 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+li {
+  list-style-type: none;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #000;
@@ -85,5 +93,13 @@ button:focus-visible {
 
   a {
     color: lightskyblue;
+  }
+
+  input {
+    background-color: #edebeb;
+  }
+
+  input:focus {
+    outline: 1px solid lightskyblue;
   }
 }

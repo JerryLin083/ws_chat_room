@@ -2,168 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>WebSocket Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self'; object-src 'none'; base-uri 'self';"
+    />
+    <link rel="icon" type="image/svg+xml" href="/assets/icons-chat-DeJFucY-.svg" />
+    <title>Chat Room</title>
+    <script type="module" crossorigin src="/assets/index-BCuRTTp_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-D0UHYaF2.css">
   </head>
   <body>
-    <h1>WebSocket Chat Example</h1>
-
-    <input
-      id="username"
-      style="display: block; width: 100px; box-sizing: border-box"
-      type="text"
-      placeholder="username"
-    />
-    <button id="create-chat" type="button">Create Chat</button>
-
-    <input
-      id="room_id"
-      style="display: block; width: 100px; box-sizing: border-box"
-      type="text"
-      placeholder="room id"
-    />
-    <button id="join-chat" type="button">Join Chat</button>
-    <textarea
-      id="chat"
-      style="
-        display: block;
-        width: 600px;
-        height: 400px;
-        box-sizing: border-box;
-      "
-      cols="30"
-      rows="10"
-    ></textarea>
-    <input
-      id="input"
-      style="display: block; width: 600px; box-sizing: border-box"
-      type="text"
-      placeholder="chat"
-    />
-
-    <button id="leave" type="button">Leave Chat</button>
-
-    <script>
-      (async () => {
-        let res = await fetch("api/login", {
-          method: "POST",
-          body: JSON.stringify({ account: "test123", password: "123123" }),
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (res.ok) {
-          const username = document.querySelector("#username");
-          const create_btn = document.querySelector("#create-chat");
-          const room_id = document.querySelector("#room_id");
-          const join_btn = document.querySelector("#join-chat");
-          const textarea = document.querySelector("#chat");
-          const input = document.querySelector("#input");
-          const leave_btn = document.querySelector("#leave");
-
-          create_btn.addEventListener("click", function (e) {
-            e.preventDefault();
-            this.disabled = true;
-
-            const websocket = new WebSocket(
-              "api/create_room?room_name=test123"
-            );
-
-            websocket.onopen = function () {
-              console.log("connection opened");
-              websocket.send(
-                JSON.stringify({ method: "Join", message: "", sender: "" })
-              );
-            };
-
-            const btn = this;
-
-            websocket.onclose = function () {
-              console.log("connection closed");
-              btn.disabled = false;
-            };
-
-            websocket.onmessage = function (e) {
-              let data = JSON.parse(e.data);
-
-              console.log("received message: " + data);
-
-              textarea.value += e.data + "\r\n";
-            };
-
-            input.onkeydown = function (e) {
-              if (e.key == "Enter") {
-                let command = {
-                  method: "Send",
-                  message: input.value,
-                  sender: "",
-                };
-
-                websocket.send(JSON.stringify(command));
-                input.value = "";
-              }
-            };
-
-            leave_btn.addEventListener("click", function (e) {
-              e.preventDefault();
-
-              websocket.close();
-            });
-          });
-
-          join_btn.addEventListener("click", function (e) {
-            e.preventDefault();
-            this.disabled = true;
-
-            const id = room_id.value;
-
-            const websocket = new WebSocket(`api/join_room?room_id=${id}`);
-
-            websocket.onopen = function () {
-              console.log("connection opened");
-              websocket.send(
-                JSON.stringify({ method: "Join", message: "", sender: "" })
-              );
-            };
-
-            const btn = this;
-
-            websocket.onclose = function () {
-              console.log("connection closed");
-              btn.disabled = false;
-            };
-
-            websocket.onmessage = function (e) {
-              let data = JSON.parse(e.data);
-
-              console.log("received message: " + data);
-
-              textarea.value += e.data + "\r\n";
-            };
-
-            input.onkeydown = function (e) {
-              if (e.key == "Enter") {
-                let command = {
-                  method: "Send",
-                  message: input.value,
-                  sender: "",
-                };
-
-                websocket.send(JSON.stringify(command));
-                input.value = "";
-              }
-            };
-
-            leave_btn.addEventListener("click", function (e) {
-              e.preventDefault();
-
-              websocket.close();
-            });
-          });
-        } else {
-          console.error("Failed to login");
-        }
-      })();
-    </script>
+    <dvi id="root"></dvi>
   </body>
 </html>
