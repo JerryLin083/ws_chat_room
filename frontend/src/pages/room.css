@@ -12,15 +12,19 @@
 }
 
 .message-bar-container {
-  position: relative;
   display: flex;
   margin: 1rem 1.2rem;
+  align-items: center;
 }
 
-.message-bar-container > p {
-  position: absolute;
-  top: -3px;
-  right: 7px;
+.message-bar-container > input {
+  margin: 0rem 1rem;
+}
+
+.message-bar-container > div {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 @media (prefers-color-scheme: light) {

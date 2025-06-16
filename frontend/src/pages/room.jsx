@@ -5,6 +5,7 @@ import { createSignal, onCleanup, onMount } from "solid-js";
 import "./room.css";
 import MessageCard from "../components/message_card";
 import send from "../assets/icons-send.svg";
+import leave from "../assets/icons-leave.svg";
 
 function Room() {
   const [searchParams, _setSearchParams] = useSearchParams();
@@ -70,6 +71,20 @@ function Room() {
     }
   };
 
+  const handleSend = (_) => {
+    if (message()) {
+      let command = {
+        method: "Send",
+        message: message(),
+        sender: "",
+        is_self: false,
+      };
+
+      ws.send(JSON.stringify(command));
+      setMessage("");
+    }
+  };
+
   return (
     <div>
       <ul class="messages-container">
@@ -78,14 +93,19 @@ function Room() {
         </For>
       </ul>
       <div class="message-bar-container">
+        <div onClick={() => window.location.replace("/")}>
+          <img src={leave} alt="leave" width="24" height="24" />
+        </div>
         <input
+          id="message"
+          placeholder="message"
           value={message()}
           onInput={(e) => setMessage(e.currentTarget.value)}
           onKeyDown={handleKeydown}
         />
-        <p>
+        <div onClick={handleSend}>
           <img src={send} alt="send" width="24" height="24" />
-        </p>
+        </div>
       </div>
     </div>
   );
