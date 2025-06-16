@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import SignUp from "./pages/signup";
+import Room from "./pages/room";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/" component={Home} />
       <Route path="login" component={Login} />
       <Route path="signup" component={SignUp} />
+      <Route path="room" component={Room} />
       <Route path="*404" component={NotFound} />
     </Router>
   );

@@ -1,0 +1,30 @@
+.messages-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: left;
+  width: inherit;
+  height: calc(100vh - 12rem);
+  margin: 1.2rem 1.2rem;
+  background-color: #000;
+  border-radius: 10px;
+  overflow: scroll;
+  overflow-x: hidden;
+}
+
+.message-bar-container {
+  position: relative;
+  display: flex;
+  margin: 1rem 1.2rem;
+}
+
+.message-bar-container > p {
+  position: absolute;
+  top: -3px;
+  right: 7px;
+}
+
+@media (prefers-color-scheme: light) {
+  .messages-container {
+    background-color: #ebebeb;
+  }
+}
