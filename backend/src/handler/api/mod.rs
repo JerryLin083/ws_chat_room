@@ -71,6 +71,7 @@ pub struct StreamCommand {
     method: StreamMethod,
     message: String,
     sender: String,
+    is_self: bool,
 }
 
 impl StreamCommand {
@@ -81,16 +82,29 @@ impl StreamCommand {
             method: StreamMethod::Join,
             message: message,
             sender: "System".into(),
+            is_self: false,
         };
 
         serde_json::to_string(&stream_command).unwrap()
     }
 
-    pub fn send(user: String, message: String) -> String {
+    pub fn send_by_others(user: String, message: String) -> String {
         let stream_command = StreamCommand {
             method: StreamMethod::Send,
             message: message,
             sender: user,
+            is_self: false,
+        };
+
+        serde_json::to_string(&stream_command).unwrap()
+    }
+
+    pub fn send_by_self(user: String, message: String) -> String {
+        let stream_command = StreamCommand {
+            method: StreamMethod::Send,
+            message: message,
+            sender: user,
+            is_self: true,
         };
 
         serde_json::to_string(&stream_command).unwrap()
@@ -103,6 +117,7 @@ impl StreamCommand {
             method: StreamMethod::Leave,
             message: message,
             sender: "System".into(),
+            is_self: false,
         };
 
         serde_json::to_string(&stream_command).unwrap()

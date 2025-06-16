@@ -203,8 +203,14 @@ async fn handle_ws(
                     }
                 }
                 room_manager::Method::Send => {
-                    let stream_command =
-                        StreamCommand::send(command.user.unwrap(), command.message.unwrap());
+                    let stream_command = if user.0 == command.user_id.unwrap() {
+                        StreamCommand::send_by_self(command.user.unwrap(), command.message.unwrap())
+                    } else {
+                        StreamCommand::send_by_others(
+                            command.user.unwrap(),
+                            command.message.unwrap(),
+                        )
+                    };
 
                     if let Err(err) = stream_sender.send(Message::text(stream_command)).await {
                         eprintln!("Error on send message: {}", err.to_string());
