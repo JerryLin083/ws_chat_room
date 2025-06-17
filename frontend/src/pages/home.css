@@ -1,3 +1,61 @@
+.setting-icon {
+  position: fixed;
+  bottom: 2rem;
+  right: 3rem;
+  display: flex;
+  justify-content: end;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 50%;
+  background-color: #e1e1e1;
+  box-shadow: 3px 3px 10px #edebeb;
+}
+
+.setting-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 3rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  border-radius: 5px;
+  background-color: #e1e1e1;
+  box-shadow: 3px 3px 10px #edebeb;
+}
+
+.setting-container > ul {
+  padding-inline-start: 5px;
+  margin: 0.2rem;
+}
+
+.create-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  color: #000;
+  cursor: pointer;
+  border-bottom: solid 2px transparent;
+}
+
+.create-container:hover {
+  border-bottom: solid 2px lightskyblue;
+}
+
+.logout-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  color: #000;
+  cursor: pointer;
+  border-bottom: solid 2px transparent;
+}
+
+.logout-container:hover {
+  border-bottom: solid 2px lightskyblue;
+}
+
 .search-bar-container {
   position: relative;
   display: flex;
@@ -12,4 +70,24 @@
 .rooms-container {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+}
+
+@media (prefers-color-scheme: light) {
+  .setting-container {
+    background-color: #292929;
+    box-shadow: 3px 3px 10px #404040;
+  }
+  .create-container {
+    color: #fff;
+  }
+
+  .create-container:hover {
+    border-bottom: solid 2px lightblue;
+  }
+  .logout-container {
+    color: #fff;
+  }
+  .logout-container:hover {
+    border-bottom: solid 2px lightblue;
+  }
 }

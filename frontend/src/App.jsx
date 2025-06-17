@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import SignUp from "./pages/signup";
 import Room from "./pages/room";
+import NewRoom from "./pages/new_room";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       <Route path="login" component={Login} />
       <Route path="signup" component={SignUp} />
       <Route path="room" component={Room} />
+      <Route path="new_room" component={NewRoom} />
       <Route path="*404" component={NotFound} />
     </Router>
   );

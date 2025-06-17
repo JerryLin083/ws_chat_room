@@ -1,0 +1,16 @@
+.form-container {
+  position: fixed;
+  top: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  border-radius: 10px;
+  background-color: rgba(121, 121, 121, 0.2);
+  backdrop-filter: blur(4px);
+  display: flex;
+}
+
+.form-container > form {
+  margin: auto;
+}
