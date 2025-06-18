@@ -126,7 +126,7 @@ impl RoomManager {
                         Method::Send => {
                             let _ = subscriber_sender.send(command.clone());
 
-                            //TODO: insert message to db
+                            //insert message to db
                             if let Err(err) = db_message_sender.send(command).await{
                                 eprintln!("Failed to insert message: {:?}", err);
                             }
