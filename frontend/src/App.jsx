@@ -2,9 +2,9 @@ import { Route, Router } from "@solidjs/router";
 
 import "./App.css";
 import Layout from "./components/layout";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import NotFound from "./pages/NotFound";
+import Home from "./pages/home";
+import Login from "./pages/login";
+import NotFound from "./pages/not_found";
 import SignUp from "./pages/signup";
 import Room from "./pages/room";
 import NewRoom from "./pages/new_room";
