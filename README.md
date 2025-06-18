@@ -95,6 +95,4 @@
     <li>Open the app in browser and start chatting</li>
   </ol>
 
-  <h2>📄 License</h2>
-  <p>This project is licensed under the MIT License.</p>
-
+  
