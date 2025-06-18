@@ -10,7 +10,7 @@ main {
   display: flex;
   flex-direction: column;
   justify-content: start;
-  height: calc(90vh - 100px);
+  min-height: calc(90vh - 100px);
 }
 
 @media (prefers-color-scheme: light) {
