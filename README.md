@@ -95,4 +95,13 @@
     <li>Open the app in browser and start chatting</li>
   </ol>
 
+  ---
+
+<h2>Demo</h2>
+<p>signup & login</p>
+<img src="https://github.com/JerryLin083/ws_chat_room/blob/master/demo/login%26signup.gif" alt="signup" width="600">
+
+<p>chat</p>
+<img src="https://github.com/JerryLin083/ws_chat_room/blob/master/demo/chat.gif" alt="chat" width="600">
+
   
